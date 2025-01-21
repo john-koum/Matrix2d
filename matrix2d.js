@@ -1,52 +1,7 @@
 /**
- * Κλάση για χειρισμό δισδιάστατων πινάκων.
+ * Κλάση για χειρισμό πινάκων.
  */
 class Matrix2d {
-
-    /**
-     * Δημιουργεί έναν μηδενικό πίνακα διαστάσεων rows x cols. (Σταθερά)
-     * @param {number} rows Ο αριθμός των γραμμών.
-     * @param {number} cols Ο αριθμός των στηλών.
-     * @returns {number[][]} Ο μηδενικός πίνακας.
-     * @static
-     */
-    static ZERO(rows, cols) {
-        if (rows < 0 || cols < 0 || !Number.isInteger(rows) || !Number.isInteger(cols)) {
-            throw new Error("Οι διαστάσεις πρέπει να είναι μη αρνητικοί ακέραιοι.");
-        }
-        return Matrix2d.zero(rows, cols);
-    }
-
-    /**
-     * Δημιουργεί έναν μοναδιαίο πίνακα διαστάσεων n x n. (Σταθερά)
-     * @param {number} n Η διάσταση του πίνακα.
-     * @returns {number[][]} Ο μοναδιαίος πίνακας.
-     * @static
-     */
-    static IDENTITY(n) {
-        if (n < 0 || !Number.isInteger(n)) {
-            throw new Error("Η διάσταση πρέπει να είναι μη αρνητικός ακέραιος.");
-        }
-        return Matrix2d.identity(n);
-    }
-
-    /**
-     * Ελέγχει αν ένας πίνακας είναι ορθογώνιος.
-     * @param {number[][]} matrix Ο πίνακας προς έλεγχο.
-     * @returns {boolean} True αν ο πίνακας είναι ορθογώνιος, false αλλιώς.
-     * @static
-     */
-    static isOrthogonal(matrix) {
-        if (!Matrix2d.isTwoDimensional(matrix) || matrix.length !== matrix[0].length) {
-            return false;
-        }
-
-        const n = matrix.length;
-        const transposed = Matrix2d.transpose(matrix);
-        const product = Matrix2d.mult(matrix, transposed);
-
-        return Matrix2d.isEquals(product, Matrix2d.IDENTITY(n));
-    }
 
     /**
      * Ελέγχει αν μια μεταβλητή είναι δισδιάστατος πίνακας.
@@ -55,7 +10,7 @@ class Matrix2d {
      * @static
      */
     static isTwoDimensional(matrix) {
-        return Array.isArray(matrix) && matrix.every(row => Array.isArray(row));
+        return matrix.length !== 0 && Array.isArray(matrix) && matrix.every(row => Array.isArray(row));
     }
 
     /**
@@ -65,7 +20,15 @@ class Matrix2d {
      * @static
      */
     static clone(matrix) {
-        return matrix.map(row => [...row]);
+        //χειρίζεται πίνακες όπως [], [2], [1,4,5], [[2],[4],[6]], [[1,2], [4,5]]
+        return matrix.map(item => {
+            if (Array.isArray(item)) {
+              return this.clone(item); // Αν είναι array, κάνουμε αναδρομική κλήση
+            } else {
+              return item; // Διαφορετικά, επιστρέφουμε το ίδιο στοιχείο
+            }
+          });
+        //return matrix.map(row => [...row]);
     }
 
     /**
@@ -85,11 +48,17 @@ class Matrix2d {
      * @returns {number} Η τιμή του κελιού.
      * @static
      */
-    static cell(matrix, row, col) {
-        if (!Matrix2d.isTwoDimensional(matrix) || row < 0 || row >= matrix.length || col < 0 || col >= matrix[0].length) {
-            return undefined;//ή throw error.
+    static cell(matrix, ...indices) {
+        let currentArray = matrix;
+
+        for (const index of indices) {
+          if (!Array.isArray(currentArray) || index < 0 || index >= currentArray.length) {
+            throw new Error("Οι διαστάσεις πρέπει να είναι μη αρνητικοί ακέραιοι.");
+          }
+          currentArray = currentArray[index];
         }
-        return matrix[row][col];
+      
+        return currentArray;
     }
 
     /**
@@ -114,60 +83,364 @@ class Matrix2d {
 
     /**
      * Ελέγχει αν δύο πίνακες είναι ίσοι.
-     * @param {number[][]} matrix1 Ο πρώτος πίνακας.
-     * @param {number[][]} matrix2 Ο δεύτερος πίνακας.
+     * @param {any} matrix1 Ο πρώτος πίνακας.
+     * @param {any} matrix2 Ο δεύτερος πίνακας.
      * @returns {boolean} True αν είναι ίσοι, false αλλιώς.
      * @static
      */
     static isEquals(matrix1, matrix2) {
-        if (!Matrix2d.isTwoDimensional(matrix1) || !Matrix2d.isTwoDimensional(matrix2) || Matrix2d.numberOfRows(matrix1) !== Matrix2d.numberOfRows(matrix2) || Matrix2d.numberOfCols(matrix1) !== Matrix2d.numberOfCols(matrix2)) {
+                // Ειδική περίπτωση: Και οι δύο πίνακες είναι null ή undefined
+        if (matrix1 === matrix2) {
+            return true;
+        }
+
+        // Ένας από τους δύο είναι null ή undefined, οπότε δεν είναι ίσοι
+        if (matrix1 === null || matrix2 === null || matrix1 === undefined || matrix2 === undefined) {
             return false;
         }
-        for (let i = 0; i < Matrix2d.numberOfRows(matrix1); i++) {
-            for (let j = 0; j < Matrix2d.numberOfCols(matrix1); j++) {
-                if (matrix1[i][j] !== matrix2[i][j]) {
-                    return false;
-                }
+
+        // Έλεγχος τύπου: Και οι δύο πρέπει να είναι πίνακες
+        if (!Array.isArray(matrix1) || !Array.isArray(matrix2)) {
+            return false;
+        }
+
+        // Έλεγχος μήκους: Οι πίνακες πρέπει να έχουν το ίδιο μήκος
+        if (matrix1.length !== matrix2.length) {
+            return false;
+        }
+
+        // Αναδρομικός έλεγχος για κάθε στοιχείο
+        for (let i = 0; i < matrix1.length; i++) {
+            if (Array.isArray(matrix1[i]) && Array.isArray(matrix2[i])) {
+            // Αν είναι και τα δύο arrays, κάνουμε αναδρομική κλήση
+            if (!this.isEquals(matrix1[i], matrix2[i])) {
+                return false;
+            }
+            } else if (typeof matrix1[i] === 'object' && typeof matrix2[i] === 'object') {
+            // Αν είναι και τα δύο objects, χρησιμοποιούμε JSON.stringify για σύγκριση
+            if (JSON.stringify(matrix1[i]) !== JSON.stringify(matrix2[i])) {
+                return false;
+            }
+            } else if (matrix1[i] !== matrix2[i]) {
+            // Διαφορετικά, συγκρίνουμε τις απλές τιμές
+            return false;
             }
         }
+
         return true;
     }
 
     /**
-     * Αφαιρεί δύο πίνακες.
-     * @param {number[][]} matrix1 Ο πρώτος πίνακας.
-     * @param {number[][]} matrix2 Ο δεύτερος πίνακας.
-     * @returns {number[][]} Η διαφορά των δύο πινάκων.
+     * Δημιουργεί έναν μοναδιαίο πίνακα διαστάσεων n x n.
+     * @param {number} n Η διάσταση του πίνακα.
+     * @returns {number[][]} Ο μοναδιαίος πίνακας.
      * @static
+     */
+    static identity(n) {
+        const matrix = [];
+        for (let i = 0; i < n; i++) {
+            matrix[i] = [];
+            for (let j = 0; j < n; j++) {
+                matrix[i][j] = i === j ? 1 : 0;
+            }
+        }
+        return matrix;
+    }
+
+    /**
+     * Δημιουργεί έναν μοναδιαίο πίνακα διαστάσεων n x n. (Σταθερά)
+     * @param {number} n Η διάσταση του πίνακα.
+     * @returns {number[][]} Ο μοναδιαίος πίνακας.
+     * @static
+     */
+    static IDENTITY(n) {
+        if (n <= 0 || !Number.isInteger(n)) {
+            throw new Error("Η διάσταση πρέπει να είναι θετικός ακέραιος.");
+        }
+        return Matrix2d.identity(n);
+    }
+
+     /**
+     * Δημιουργεί έναν μηδενικό πίνακα διαστάσεων rows x cols.
+     * @param {number} rows Ο αριθμός των γραμμών.
+     * @param {number} cols Ο αριθμός των στηλών.
+     * @returns {number[][]} Ο μηδενικός πίνακας.
+     * @static
+     */
+    static zero(rows,cols) {
+        const matrix = [];
+        for (let i = 0; i < rows; i++) {
+            matrix[i] = [];
+            for (let j = 0; j < cols; j++) {
+                matrix[i][j] = 0;
+            }
+        }
+        return matrix;
+    }
+
+     /**
+     * Δημιουργεί έναν μηδενικό πίνακα διαστάσεων rows x cols. (Σταθερά)
+     * @param {number} rows Ο αριθμός των γραμμών.
+     * @param {number} cols Ο αριθμός των στηλών.
+     * @returns {number[][]} Ο μηδενικός πίνακας.
+     * @static
+     */
+     static ZERO(rows, cols) {
+        if (rows < 0 || cols < 0 || !Number.isInteger(rows) || !Number.isInteger(cols)) {
+            throw new Error("Οι διαστάσεις πρέπει να είναι μη αρνητικοί ακέραιοι.");
+        }
+        return Matrix2d.zero(rows, cols);
+    }
+
+    /**
+     * Προσθέτει δύο πίνακες, ανεξάρτητα από τις διαστάσεις τους.
+     * 
+     * Η μέθοδος δημιουργεί έναν νέο πίνακα που είναι το άθροισμα των δύο εισόδων.
+     * Αν οι πίνακες έχουν διαφορετικές διαστάσεις, συμπληρώνει τα κενά στοιχεία με μηδέν.
+     * 
+     * @param {Array} matrix1 - Ο πρώτος πίνακας που θα προστεθεί. Μπορεί να είναι πολυδιάστατος.
+     * @param {Array} matrix2 - Ο δεύτερος πίνακας που θα προστεθεί. Μπορεί να είναι πολυδιάστατος.
+     * @returns {Array} Ένας νέος πίνακας που αποτελεί το άθροισμα των δύο εισόδων.
+     */
+    static add(matrix1, matrix2) {
+        // Ειδική περίπτωση: Και οι δύο πίνακες είναι κενοί
+        if (!matrix1.length && !matrix2.length) {
+          return [];
+        }
+      
+        // Βρίσκουμε τις διαστάσεις του μεγαλύτερου πίνακα
+        const maxRows = Math.max(matrix1.length, matrix2.length);
+        const maxCols = Math.max(...matrix1.map(row => row.length), ...matrix2.map(row => row.length));
+      
+        // Δημιουργούμε έναν νέο πίνακα για το αποτέλεσμα
+        const result = [];
+      
+        for (let i = 0; i < maxRows; i++) {
+          result[i] = [];
+          for (let j = 0; j < maxCols; j++) {
+            // Αν υπάρχει στοιχείο και στους δύο πίνακες, το προσθέτουμε
+            const val1 = matrix1[i]?.[j] || 0;
+            const val2 = matrix2[i]?.[j] || 0;
+            result[i][j] = val1 + val2;
+          }
+        }
+      
+        return result;
+      }
+    
+    /**
+     * Προσθέτει μια σταθερά (scalar) σε κάθε στοιχείο ενός πίνακα, συμπεριλαμβανομένων και των ενσωματωμένων πινάκων.
+     *
+     * Η μέθοδος εξερευνά αναδρομικά τον πίνακα και προσθέτει τη σταθερά σε κάθε στοιχείο που είναι αριθμός.
+     *
+     * @param {Array} matrix - Ο πίνακας στον οποίο θα εφαρμοστεί η πράξη. Μπορεί να περιέχει οποιοδήποτε τύπο δεδομένων, συμπεριλαμβανομένων και άλλων πινάκων.
+     * @param {number} scalar - Η σταθερά που θα προστεθεί σε κάθε αριθμητικό στοιχείο.
+     * @returns {Array} Ένας νέος πίνακας με το αποτέλεσμα της πρόσθεσης.
+     */
+    static scalarAdd(matrix, scalar) {
+        // Αν ο matrix δεν είναι πίνακας, επιστρέφουμε τον ίδιο
+        if (!Array.isArray(matrix)) {
+          return matrix;
+        }
+      
+        // Δημιουργούμε έναν νέο πίνακα για να αποφύγουμε παρενέργειες
+        const result = [];
+      
+        for (let i = 0; i < matrix.length; i++) {
+          result[i] = [];
+          for (let j = 0; j < matrix[i].length; j++) {
+            if (Array.isArray(matrix[i][j])) {
+              // Αν είναι πίνακας, καλούμε αναδρομικά τη συνάρτηση
+              result[i][j] = this.scalarAdd(matrix[i][j], scalar);
+            } else {
+              // Διαφορετικά, προσθέτουμε τη σταθερά
+              result[i][j] = matrix[i][j] + scalar;
+            }
+          }
+        }
+      
+        return result;
+      }
+
+    /**
+     * Αφαιρεί δύο πίνακες, ανεξάρτητα από τις διαστάσεις τους.
+     * 
+     * Η μέθοδος δημιουργεί έναν νέο πίνακα που είναι η διαφορά των δύο εισόδων.
+     * Αν οι πίνακες έχουν διαφορετικές διαστάσεις, συμπληρώνει τα κενά στοιχεία με μηδέν.
+     * 
+     * @param {Array} matrix1 Ο πρώτος πίνακας που θα αφαιρεθεί. Μπορεί να είναι πολυδιάστατος.
+     * @param {Array[][]} matrix2 Ο δεύτερος πίνακας που θα αφαιρεθεί από τον πρώτο. Μπορεί να είναι πολυδιάστατος.
+     * @returns {Array} Ένας νέος πίνακας που αποτελεί τη διαφορά των δύο εισόδων.
      */
     static sub(matrix1, matrix2) {
-        if (!Matrix2d.isTwoDimensional(matrix1) || !Matrix2d.isTwoDimensional(matrix2) || Matrix2d.numberOfRows(matrix1) !== Matrix2d.numberOfRows(matrix2) || Matrix2d.numberOfCols(matrix1) !== Matrix2d.numberOfCols(matrix2)) {
-            throw new Error("Οι πίνακες πρέπει να έχουν τις ίδιες διαστάσεις.");
+        // Βρίσκουμε τις διαστάσεις του μεγαλύτερου πίνακα
+        const maxRows = Math.max(matrix1.length, matrix2.length);
+        const maxCols = Math.max(...matrix1.map(row => row.length), ...matrix2.map(row => row.length));
+    
+        // Δημιουργούμε έναν νέο πίνακα για το αποτέλεσμα
+        const result = [];
+    
+        for (let i = 0; i < maxRows; i++) {
+        result[i] = [];
+        for (let j = 0; j < maxCols; j++) {
+            // Αν υπάρχει στοιχείο και στους δύο πίνακες, το αφαιρούμε
+            const val1 = matrix1[i]?.[j] || 0;
+            const val2 = matrix2[i]?.[j] || 0;
+            result[i][j] = val1 - val2;
         }
-        return matrix1.map((row, i) => row.map((val, j) => val - matrix2[i][j]));
+        }
+    
+        return result;
     }
 
+        
     /**
-     * Πολλαπλασιάζει έναν πίνακα με έναν αριθμό (scalar).
+     * Πολλαπλασιάζει δύο πίνακες.
+     *
+     * @param {Array} matrix1 Ο πρώτος πίνακας.
+     * @param {Array} matrix2 Ο δεύτερος πίνακας.
+     * @returns {Array} Το γινόμενο των δύο πινάκων.
+     * @throws {Error} Αν οι πίνακες δεν έχουν τις κατάλληλες διαστάσεις ή αν περιέχουν μη αριθμητικά στοιχεία.
+     */
+    static mult(matrix1, matrix2) {
+        // Έλεγχος αν οι παράμετροι είναι πίνακες
+        if (!Array.isArray(matrix1) || !Array.isArray(matrix2)) {
+        throw new Error('Οι παράμετροι πρέπει να είναι πίνακες.');
+        }
+    
+        // Έλεγχος αν οι πίνακες είναι κενές μήτρες
+        if (matrix1.length === 0 || matrix2.length === 0 || matrix1[0].length === 0 || matrix2[0].length === 0) {
+        throw new Error('Οι πίνακες δεν μπορούν να είναι κενές μήτρες.');
+        }
+    
+        // Έλεγχος αν ο αριθμός των στηλών του πρώτου πίνακα είναι ίσος με τον αριθμό των γραμμών του δεύτερου
+        if (matrix1[0].length !== matrix2.length) {
+        throw new Error('Ο αριθμός των στηλών του πρώτου πίνακα πρέπει να είναι ίσος με τον αριθμό των γραμμών του δεύτερου.');
+        }
+    
+        // Έλεγχος αν όλα τα στοιχεία είναι αριθμοί
+        if (!matrix1.every(row => row.every(element => typeof element === 'number')) ||
+            !matrix2.every(row => row.every(element => typeof element === 'number'))) {
+        throw new Error('Οι πίνακες πρέπει να περιέχουν μόνο αριθμούς.');
+        }
+    
+        // Υπολογισμός του γινομένου
+        const m = matrix1.length;
+        const n = matrix1[0].length;
+        const p = matrix2[0].length;
+        const result = [];
+        for (let i = 0; i < m; i++) {
+        result[i] = [];
+        for (let j = 0; j < p; j++) {
+            let sum = 0;
+            for (let k = 0; k < n; k++) {
+            sum += matrix1[i][k] * matrix2[k][j];
+            }
+            result[i][j] = sum;
+        }
+        }
+        return result;
+    }
+
+   /**
+     * Πολλαπλασιάζει έναν πίνακα με έναν αριθμό (scalar), ανεξαρτήτως του βάθους του πίνακα.
+     *
+     * @param {Array} matrix Ο πίνακας. Μπορεί να είναι πολυδιάστατος.
+     * @param {number} scalar Ο αριθμός με τον οποίο θα πολλαπλασιαστούν τα στοιχεία.
+     * @returns {Array} Ο νέος πίνακας με τα πολλαπλασιασμένα στοιχεία.
+     * @throws {TypeError} Αν ο πρώτος παράμετρος δεν είναι πίνακας.
+     * @throws {TypeError} Αν ο δεύτερος παράμετρος δεν είναι αριθμός.
+     */
+    static scalarMult(matrix, scalar) {
+        if (!Array.isArray(matrix)) {
+            throw new TypeError('Ο πρώτος παράμετρος πρέπει να είναι πίνακας.');
+        }
+        if (typeof scalar !== 'number') {
+            throw new TypeError('Ο δεύτερος παράμετρος πρέπει να είναι αριθμός.');
+        }
+
+        return matrix.map(element => {
+            if (Array.isArray(element)) {
+                return this.scalarMult(element, scalar); // Αναδρομική κλήση για υποπίνακες
+            } else {
+                return element * scalar;
+            }
+        });
+    }
+    
+    /**
+     * Υψώνει έναν πίνακα σε μια δύναμη (μόνο για τετραγωνικούς πίνακες).
      * @param {number[][]} matrix Ο πίνακας.
-     * @param {number} scalar Ο αριθμός.
-     * @returns {number[][]} Ο πίνακας πολλαπλασιασμένος με τον αριθμό.
+     * @param {number} power Η δύναμη.
+     * @returns {number[][]} Ο πίνακας υψωμένος στη δύναμη.
      * @static
      */
-    static scalarSub(matrix, scalar) {
-        return matrix.map(row => row.map(val => val - scalar));
-    }
+        static pow(matrix, power) {
+            if (!Matrix2d.isTwoDimensional(matrix) || matrix.length !== matrix[0].length) {
+                throw new Error("Η είσοδος πρέπει να είναι τετραγωνικός πίνακας.");
+            }
+            if (power === 0) {
+                return Matrix2d.identity(matrix.length);
+            }
+            let result = Matrix2d.clone(matrix);
+            for (let i = 1; i < power; i++) {
+                result = Matrix2d.mult(result, matrix);
+            }
+            return result;
+        }
+    
 
     /**
+     * Υψώνει κάθε στοιχείο ενός πίνακα σε μια δύναμη (scalar), ανεξαρτήτως του βάθους του πίνακα.
+     *
+     * @param {Array} matrix Ο πίνακας. Μπορεί να είναι πολυδιάστατος.
+     * @param {number} scalar Η δύναμη στην οποία θα υψωθούν τα στοιχεία. Πρέπει να είναι θετικός αριθμός.
+     * @returns {Array} Ο νέος πίνακας με τα στοιχεία υψωμένα στη δύναμη.
+     * @throws {TypeError} Αν ο πρώτος παράμετρος δεν είναι πίνακας.
+     * @throws {TypeError} Αν ο δεύτερος παράμετρος δεν είναι αριθμός.
+     * @throws {RangeError} Αν ο δεύτερος παράμετρος δεν είναι θετικός αριθμός.
+     */
+    static scalarPow(matrix, scalar) {
+        if (!Array.isArray(matrix)) {
+            throw new TypeError('Ο πρώτος παράμετρος πρέπει να είναι πίνακας.');
+        }
+        if (typeof scalar !== 'number') {
+            throw new TypeError('Ο δεύτερος παράμετρος πρέπει να είναι αριθμός.');
+        }
+        if (scalar <= 0) {
+            throw new RangeError('Η δύναμη πρέπει να είναι θετικός αριθμός.');
+        }
+
+        return matrix.map(element => {
+            if (Array.isArray(element)) {
+                return this.scalarPow(element, scalar); // Αναδρομική κλήση για υποπίνακες
+            } else if (typeof element === 'number') {
+                return Math.pow(element, scalar);
+            } else {
+                throw new TypeError('Τα στοιχεία του πίνακα πρέπει να είναι αριθμοί.');
+            }
+        });
+    }
+     
+    /**
      * Υπολογίζει το ίχνος ενός πίνακα (άθροισμα των διαγώνιων στοιχείων).
-     * @param {number[][]} matrix Ο πίνακας.
+     *
+     * @param {Array} matrix Ο πίνακας. Μπορεί να είναι μονοδιάστατος ή πολυδιάστατος.
      * @returns {number} Το ίχνος του πίνακα.
      * @static
      */
     static trace(matrix) {
-        if (!Matrix2d.isTwoDimensional(matrix)) {
+        // Έλεγχος αν η είσοδος είναι πίνακας
+        if (!Array.isArray(matrix)) {
             throw new Error("Η είσοδος δεν είναι έγκυρος πίνακας.");
         }
+
+        // Ειδική περίπτωση για μονοδιάστατους πίνακες
+        if (matrix.length === 1 && !Array.isArray(matrix[0])) {
+            return matrix[0];
+        }
+
+        // Για δισδιάστατους και πολυδιάστατους πίνακες
         let trace = 0;
         for (let i = 0; i < Math.min(matrix.length, matrix[0].length); i++) {
             trace += matrix[i][i];
@@ -177,71 +450,119 @@ class Matrix2d {
 
     /**
      * Επιστρέφει τη διαγώνιο ενός πίνακα ως πίνακα μιας στήλης.
-     * @param {number[][]} matrix Ο πίνακας.
-     * @returns {number[]} Η διαγώνιος του πίνακα.
+     *
+     * @param {Array} matrix Ο πίνακας. Μπορεί να είναι μονοδιάστατος ή πολυδιάστατος.
+     * @param {boolean} [includeAllDiagonals=false] Αν είναι true, επιστρέφει όλες τις διαγώνιους ενός δισδιάστατου πίνακα.
+     * @returns {Array[]} Ένας πίνακας που περιέχει τις διαγωνίους του εισερχόμενου πίνακα.
      * @static
      */
-    static diagonal(matrix) {
-        if (!Matrix2d.isTwoDimensional(matrix)) {
+    static diagonal(matrix, includeAllDiagonals = false) {
+        if (!Array.isArray(matrix)) {
             throw new Error("Η είσοδος δεν είναι έγκυρος πίνακας.");
         }
-        const diagonal = [];
-        for (let i = 0; i < Math.min(matrix.length, matrix[0].length); i++) {
-            diagonal.push(matrix[i][i]);
+
+        if (matrix.length === 0) {
+            return []; // Κενός πίνακας
         }
-        return diagonal;
+
+        if (!Array.isArray(matrix[0])) {
+            // Μονοδιάστατος πίνακας
+            return matrix;
+        }
+
+        // Δισδιάστατος ή πολυδιάστατος πίνακας
+        const diagonals = [];
+        const minLength = Math.min(matrix.length, matrix[0].length);
+
+        // Κύρια διαγώνιος
+        for (let i = 0; i < minLength; i++) {
+            diagonals.push(matrix[i][i]);
+        }
+
+        // Αν ζητηθεί, υπολογίζουμε και τις υπόλοιπες διαγώνιους (μόνο για δισδιάστατους πίνακες)
+        if (includeAllDiagonals && matrix.length === matrix[0].length) {
+            // Ανώτερη τριγωνική
+            for (let i = 0; i < matrix.length - 1; i++) {
+                for (let j = i + 1; j < matrix.length; j++) {
+                    diagonals.push(matrix[i][j]);
+                }
+            }
+            // Κατώτερη τριγωνική
+            for (let i = 1; i < matrix.length; i++) {
+                for (let j = 0; j < i; j++) {
+                    diagonals.push(matrix[i][j]);
+                }
+            }
+        }
+
+        return diagonals;
     }
 
     /**
      * Επιστρέφει τον αντίθετο πίνακα.
-     * @param {number[][]} matrix Ο πίνακας.
-     * @returns {number[][]} Ο αντίθετος πίνακας.
+     *
+     * @param {Array} matrix Ο πίνακας. Μπορεί να είναι μονοδιάστατος ή πολυδιάστατος.
+     * @returns {Array} Ο αντίθετος πίνακας.
      * @static
      */
     static opposite(matrix) {
-        return matrix.map(row => row.map(val => -val));
+        if (!Array.isArray(matrix)) {
+            throw new Error("Η είσοδος δεν είναι έγκυρος πίνακας.");
+        }
+
+        return matrix.map(element => {
+            if (Array.isArray(element)) {
+                return this.opposite(element); // Αναδρομική κλήση για υποπίνακες
+            } else if (typeof element === 'number') {
+                return -element;
+            } else {
+                // Εδώ μπορείς να προσθέσεις λογική για άλλους τύπους δεδομένων, π.χ.
+                // return element; // Αν θέλεις να αφήσεις άλλους τύπους αναλλοίωτους
+                throw new TypeError('Τα στοιχεία του πίνακα πρέπει να είναι αριθμοί.');
+            }
+        });
     }
 
     /**
-     * Υψώνει έναν πίνακα σε μια δύναμη (μόνο για τετραγωνικούς πίνακες).
-     * @param {number[][]} matrix Ο πίνακας.
-     * @param {number} power Η δύναμη.
-     * @returns {number[][]} Ο πίνακας υψωμένος στη δύναμη.
-     * @static
-     */
-    static pow(matrix, power) {
-        if (!Matrix2d.isTwoDimensional(matrix) || matrix.length !== matrix[0].length) {
-            throw new Error("Η είσοδος πρέπει να είναι τετραγωνικός πίνακας.");
-        }
-        if (power === 0) {
-            return Matrix2d.identity(matrix.length);
-        }
-        let result = Matrix2d.clone(matrix);
-        for (let i = 1; i < power; i++) {
-            result = Matrix2d.mult(result, matrix);
-        }
-        return result;
-    }
-
-    /**
-     * Αναστρέφει έναν πίνακα.
-     * @param {number[][]} matrix Ο πίνακας.
-     * @returns {number[][]} Ο αναστροφικός πίνακας.
+     * Μεταθέτει έναν πίνακα.
+     *
+     * @param {Array} matrix Ο πίνακας. Μπορεί να είναι μονοδιάστατος ή πολυδιάστατος.
+     * @returns {Array} Ο μεταθεμένος πίνακας.
      * @static
      */
     static transpose(matrix) {
+        if (!Array.isArray(matrix)) {
+            throw new Error("Η είσοδος δεν είναι έγκυρος πίνακας.");
+        }
+
+        if (matrix.length === 0) {
+            return []; // Κενός πίνακας
+        }
+
+        if (!Array.isArray(matrix[0])) {
+            // Μονοδιάστατος πίνακας: μετατροπή σε πίνακα στήλης
+            return matrix.map(x => [x]);
+        }
+
+        // Δισδιάστατος ή πολυδιάστατος πίνακας
         const rows = matrix.length;
         const cols = matrix[0].length;
         const transposed = [];
+
         for (let j = 0; j < cols; j++) {
             transposed[j] = [];
             for (let i = 0; i < rows; i++) {
-                transposed[j][i] = matrix[i][j];
+                if (Array.isArray(matrix[i][j])) {
+                    transposed[j][i] = this.transpose(matrix[i][j]); // Αναδρομική κλήση
+                } else {
+                    transposed[j][i] = matrix[i][j];
+                }
             }
         }
+
         return transposed;
     }
-
+ 
      /**
      * Υπολογίζει την ορίζουσα ενός πίνακα 2x2.
      * @param {number[][]} matrix Ο πίνακας 2x2.
@@ -355,84 +676,6 @@ class Matrix2d {
     }
 
     /**
-     * Δημιουργεί έναν μοναδιαίο πίνακα διαστάσεων n x n.
-     * @param {number} n Η διάσταση του πίνακα.
-     * @returns {number[][]} Ο μοναδιαίος πίνακας.
-     * @static
-     */
-    static identity(n) {
-        const matrix = [];
-        for (let i = 0; i < n; i++) {
-            matrix[i] = [];
-            for (let j = 0; j < n; j++) {
-                matrix[i][j] = i === j ? 1 : 0;
-            }
-        }
-        return matrix;
-    }
-     /**
-     * Δημιουργεί έναν μηδενικό πίνακα διαστάσεων rows x cols.
-     * @param {number} rows Ο αριθμός των γραμμών.
-     * @param {number} cols Ο αριθμός των στηλών.
-     * @returns {number[][]} Ο μηδενικός πίνακας.
-     * @static
-     */
-    static zero(rows,cols) {
-        const matrix = [];
-        for (let i = 0; i < rows; i++) {
-            matrix[i] = [];
-            for (let j = 0; j < cols; j++) {
-                matrix[i][j] = 0;
-            }
-        }
-        return matrix;
-    }
-    /**
-     * Πολλαπλασιάζει δύο πίνακες.
-     * @param {number[][]} matrix1 Ο πρώτος πίνακας.
-     * @param {number[][]} matrix2 Ο δεύτερος πίνακας.
-     * @returns {number[][]} Το γινόμενο των δύο πινάκων.
-     * @static
-     */
-    static mult(matrix1, matrix2) {
-        const m = matrix1.length;
-        const n = matrix1[0].length;
-        const p = matrix2[0].length;
-        const result = [];
-        for (let i = 0; i < m; i++) {
-            result[i] = [];
-            for (let j = 0; j < p; j++) {
-                let sum = 0;
-                for (let k = 0; k < n; k++) {
-                    sum += matrix1[i][k] * matrix2[k][j];
-                }
-                result[i][j] = sum;
-            }
-        }
-        return result;
-    }
-    /**
-     * Πολλαπλασιάζει έναν πίνακα με έναν αριθμό (scalar).
-     * @param {number[][]} matrix Ο πίνακας.
-     * @param {number} scalar Ο αριθμός.
-     * @returns {number[][]} Ο πίνακας πολλαπλασιασμένος με τον αριθμό.
-     * @static
-     */
-    static scalarMult(matrix, scalar) {
-        return matrix.map(row => row.map(val => val * scalar));
-    }
-    /**
-     * Προσθέτει δύο πίνακες.
-     * @param {number[][]} matrix1 Ο πρώτος πίνακας.
-     * @param {number[][]} matrix2 Ο δεύτερος πίνακας.
-     * @returns {number[][]} Το άθροισμα των δύο πινάκων.
-     * @static
-     */
-    static add(matrix1, matrix2) {
-        return matrix1.map((row, i) => row.map((val, j) => val + matrix2[i][j]));
-    }
-
-    /**
      * Ελέγχει αν ένας πίνακας είναι διαγώνιος.
      * @param {number[][]} matrix Ο πίνακας προς έλεγχο.
      * @returns {boolean} True αν ο πίνακας είναι διαγώνιος, false αλλιώς.
@@ -480,72 +723,166 @@ class Matrix2d {
 
     /**
      * Ελέγχει αν ένας πίνακας είναι θετικός (όλα τα στοιχεία > 0).
-     * @param {number[][]} matrix Ο πίνακας προς έλεγχο.
+     *
+     * @param {Array} matrix Ο πίνακας. Μπορεί να είναι μονοδιάστατος ή πολυδιάστατος.
      * @returns {boolean} True αν ο πίνακας είναι θετικός, false αλλιώς.
      * @static
      */
     static isPositive(matrix) {
-        if (!Matrix2d.isTwoDimensional(matrix)) return false;
-        return matrix.every(row => row.every(val => val > 0));
+        if (!Array.isArray(matrix)) {
+            throw new Error("Η είσοδος δεν είναι έγκυρος πίνακας.");
+        }
+
+        return matrix.every(element => {
+            if (Array.isArray(element)) {
+                return this.isPositive(element); // Αναδρομική κλήση για υποπίνακες
+            } else if (typeof element === 'number') {
+                return element > 0;
+            } else {
+                throw new TypeError('Τα στοιχεία του πίνακα πρέπει να είναι αριθμοί.');
+            }
+        });
     }
 
     /**
      * Ελέγχει αν ένας πίνακας είναι μη-αρνητικός (όλα τα στοιχεία >= 0).
-     * @param {number[][]} matrix Ο πίνακας προς έλεγχο.
+     *
+     * @param {Array} matrix Ο πίνακας. Μπορεί να είναι μονοδιάστατος ή πολυδιάστατος.
      * @returns {boolean} True αν ο πίνακας είναι μη-αρνητικός, false αλλιώς.
      * @static
      */
     static isNonNegative(matrix) {
-        if (!Matrix2d.isTwoDimensional(matrix)) return false;
-        return matrix.every(row => row.every(val => val >= 0));
+        if (!Array.isArray(matrix)) {
+            throw new Error("Η είσοδος δεν είναι έγκυρος πίνακας.");
+        }
+
+        return matrix.every(element => {
+            if (Array.isArray(element)) {
+                return this.isNonNegative(element); // Αναδρομική κλήση για υποπίνακες
+            } else if (typeof element === 'number') {
+                return element >= 0;
+            } else {
+                throw new TypeError('Τα στοιχεία του πίνακα πρέπει να είναι αριθμοί.');
+            }
+        });
     }
 
     /**
      * Ελέγχει αν ένας πίνακας είναι μηδενικός (όλα τα στοιχεία = 0).
-     * @param {number[][]} matrix Ο πίνακας προς έλεγχο.
+     *
+     * @param {Array} matrix Ο πίνακας. Μπορεί να είναι μονοδιάστατος ή πολυδιάστατος.
      * @returns {boolean} True αν ο πίνακας είναι μηδενικός, false αλλιώς.
      * @static
      */
     static isZero(matrix) {
-        if (!Matrix2d.isTwoDimensional(matrix)) return false;
-        return matrix.every(row => row.every(val => val === 0));
+        if (!Array.isArray(matrix)) {
+            throw new Error("Η είσοδος δεν είναι έγκυρος πίνακας.");
+        }
+
+        return matrix.every(element => {
+            if (Array.isArray(element)) {
+                return this.isZero(element); // Αναδρομική κλήση για υποπίνακες
+            } else if (typeof element === 'number') {
+                return element === 0;
+            } else {
+                throw new TypeError('Τα στοιχεία του πίνακα πρέπει να είναι αριθμοί.');
+            }
+        });
     }
+
     /**
      * Κλωνοποιεί έναν πίνακα εξαιρώντας μια γραμμή και μια στήλη.
-     * @param {number[][]} matrix Ο αρχικός πίνακας.
+     *
+     * @param {Array} matrix Ο αρχικός πίνακας. Μπορεί να είναι μονοδιάστατος ή πολυδιάστατος.
      * @param {number} row Η γραμμή που θα εξαιρεθεί.
      * @param {number} col Η στήλη που θα εξαιρεθεί.
-     * @returns {number[][]} Ο κλώνος του πίνακα χωρίς τη γραμμή και τη στήλη.
+     * @returns {Array} Ο κλώνος του πίνακα χωρίς τη γραμμή και τη στήλη.
      * @static
      */
     static cloneExcludeRowCol(matrix, row, col) {
-        if (!Matrix2d.isTwoDimensional(matrix)) return [];
-        return matrix.filter((_, i) => i !== row).map(r => r.filter((_, j) => j !== col));
+        if (!Array.isArray(matrix)) {
+            throw new Error("Η είσοδος δεν είναι έγκυρος πίνακας.");
+        }
+
+        if (matrix.length === 0) {
+            return [];
+        }
+
+        if (!Array.isArray(matrix[0])) {
+            // Μονοδιάστατος πίνακας
+            return [...matrix]; // Επιστρέφουμε μια αντιγραφή
+        }
+
+        if (row < 0 || row >= matrix.length || col < 0 || col >= matrix[0].length) {
+            throw new Error("Οι δείκτες γραμμής και στήλης είναι εκτός ορίων.");
+        }
+
+        return matrix.flatMap((r, i) => {
+            if (i === row) return []; // Παράβλεψε τη γραμμή που πρέπει να εξαιρεθεί
+            return r.filter((_, j) => j !== col); // Φίλτρο για να εξαιρέσουμε τη στήλη
+        });
     }
 
     /**
      * Κλωνοποιεί έναν πίνακα εξαιρώντας μια γραμμή.
-     * @param {number[][]} matrix Ο αρχικός πίνακας.
+     *
+     * @param {Array} matrix Ο αρχικός πίνακας. Μπορεί να είναι μονοδιάστατος ή πολυδιάστατος.
      * @param {number} row Η γραμμή που θα εξαιρεθεί.
-     * @returns {number[][]} Ο κλώνος του πίνακα χωρίς τη γραμμή.
+     * @returns {Array} Ο κλώνος του πίνακα χωρίς τη γραμμή.
      * @static
      */
     static cloneExcludeRow(matrix, row) {
-        if (!Matrix2d.isTwoDimensional(matrix)) return [];
+        if (!Array.isArray(matrix)) {
+            throw new Error("Η είσοδος δεν είναι έγκυρος πίνακας.");
+        }
+
+        if (matrix.length === 0) {
+            return [];
+        }
+
+        if (!Array.isArray(matrix[0])) {
+            // Μονοδιάστατος πίνακας
+            return [...matrix]; // Επιστρέφουμε μια αντιγραφή
+        }
+
+        if (row < 0 || row >= matrix.length) {
+            throw new Error("Ο δείκτης γραμμής είναι εκτός ορίων.");
+        }
+
         return matrix.filter((_, i) => i !== row);
     }
 
     /**
      * Κλωνοποιεί έναν πίνακα εξαιρώντας μια στήλη.
-     * @param {number[][]} matrix Ο αρχικός πίνακας.
+     *
+     * @param {Array} matrix Ο αρχικός πίνακας. Μπορεί να είναι μονοδιάστατος ή πολυδιάστατος.
      * @param {number} col Η στήλη που θα εξαιρεθεί.
-     * @returns {number[][]} Ο κλώνος του πίνακα χωρίς τη στήλη.
+     * @returns {Array} Ο κλώνος του πίνακα χωρίς τη στήλη.
      * @static
      */
     static cloneExcludeCol(matrix, col) {
-        if (!Matrix2d.isTwoDimensional(matrix)) return [];
-        return matrix.map(r => r.filter((_, j) => j !== col));
+        if (!Array.isArray(matrix)) {
+            throw new Error("Η είσοδος δεν είναι έγκυρος πίνακας.");
+        }
+
+        if (matrix.length === 0) {
+            return [];
+        }
+
+        if (!Array.isArray(matrix[0])) {
+            // Μονοδιάστατος πίνακας
+            return [...matrix]; // Επιστρέφουμε μια αντιγραφή
+        }
+
+        if (col < 0 || col >= matrix[0].length) {
+            throw new Error("Ο δείκτης στήλης είναι εκτός ορίων.");
+        }
+
+        return matrix.map(row => {
+            return row.filter((_, j) => j !== col);
+        });
     }
+
     /**
      * Ελέγχει αν ένας πίνακας είναι διαγωνίως κυρίαρχος.
      * @param {number[][]} matrix Ο πίνακας προς έλεγχο.
@@ -592,38 +929,28 @@ class Matrix2d {
         return true;
     }
 
-    /**
-     * Προσθέτει μια σταθερά (scalar) σε κάθε στοιχείο ενός πίνακα.
-     * @param {number[][]} matrix Ο πίνακας.
-     * @param {number} scalar Η σταθερά που θα προστεθεί.
-     * @returns {number[][]} Ο πίνακας με την προσθήκη της σταθεράς.
-     * @static
-     */
-    static scalarAdd(matrix, scalar) {
-        if (!Matrix2d.isTwoDimensional(matrix)) return [];
-        return matrix.map(row => row.map(val => val + scalar));
-    }
 
-    /**
-     * Υψώνει κάθε στοιχείο ενός πίνακα σε μια δύναμη (scalar).
-     * @param {number[][]} matrix Ο πίνακας.
-     * @param {number} scalar Η δύναμη.
-     * @returns {number[][]} Ο πίνακας με τα στοιχεία υψωμένα στη δύναμη.
-     * @static
-     */
-    static scalarPow(matrix, scalar) {
-        if (!Matrix2d.isTwoDimensional(matrix)) return [];
-        return matrix.map(row => row.map(val => Math.pow(val, scalar)));
-    }
-
-    /**
+   /**
      * Ελέγχει αν ένας πίνακας είναι άνω τριγωνικός.
-     * @param {number[][]} matrix Ο πίνακας προς έλεγχο.
-     * @returns {boolean} True αν είναι άνω τριγωνικός, false αλλιώς.
+     *
+     * @param {Array} matrix Ο πίνακας. Μπορεί να είναι μονοδιάστατος ή πολυδιάστατος.
+     * @returns {boolean} True αν ο πίνακας είναι άνω τριγωνικός, false αλλιώς.
      * @static
      */
     static isUpperTriangular(matrix) {
-        if (!Matrix2d.isTwoDimensional(matrix) || matrix.length !== matrix[0].length) return false;
+        if (!Array.isArray(matrix)) {
+            throw new Error("Η είσοδος δεν είναι έγκυρος πίνακας.");
+        }
+
+        if (matrix.length === 0) {
+            return true; // Κενός πίνακας θεωρείται άνω τριγωνικός
+        }
+
+        if (!Array.isArray(matrix[0])) {
+            // Μονοδιάστατος πίνακας
+            return true; // Κάθε μονοδιάστατος πίνακας θεωρείται άνω τριγωνικός
+        }
+
         const n = matrix.length;
         for (let i = 1; i < n; i++) {
             for (let j = 0; j < i; j++) {
@@ -632,63 +959,133 @@ class Matrix2d {
                 }
             }
         }
+
+        // Ελέγχουμε αν οι υποπίνακες είναι άνω τριγωνικοί
+        for (let i = 0; i < matrix.length; i++) {
+            if (Array.isArray(matrix[i][0])) {
+                if (!this.isUpperTriangular(matrix[i])) {
+                    return false;
+                }
+            }
+        }
+
         return true;
     }
 
     /**
      * Ελέγχει αν ένας πίνακας είναι αυστηρά άνω τριγωνικός.
-     * @param {number[][]} matrix Ο πίνακας προς έλεγχο.
-     * @returns {boolean} True αν είναι αυστηρά άνω τριγωνικός, false αλλιώς.
+     *
+     * @param {Array} matrix Ο πίνακας. Μπορεί να είναι μονοδιάστατος ή πολυδιάστατος.
+     * @returns {boolean} True αν ο πίνακας είναι αυστηρά άνω τριγωνικός, false αλλιώς.
      * @static
      */
     static isStrictlyUpperTriangular(matrix) {
-        if (!Matrix2d.isTwoDimensional(matrix) || matrix.length !== matrix[0].length) return false;
+        if (!Array.isArray(matrix)) {
+            throw new Error("Η είσοδος δεν είναι έγκυρος πίνακας.");
+        }
+
+        if (matrix.length === 0) {
+            return true; // Κενός πίνακας θεωρείται άνω τριγωνικός
+        }
+
+        if (!Array.isArray(matrix[0])) {
+            // Μονοδιάστατος πίνακας
+            return true; // Κάθε μονοδιάστατος πίνακας θεωρείται άνω τριγωνικός
+        }
+
         const n = matrix.length;
         for (let i = 0; i < n; i++) {
-            for (let j = 0; j <= i; j++) { // <= για να ελέγξει και την διαγώνιο.
-                if (matrix[i][j] !== 0) {
+            if (Array.isArray(matrix[i][0])) {
+                if (!this.isStrictlyUpperTriangular(matrix[i])) {
                     return false;
+                }
+            } else {
+                for (let j = 0; j < i; j++) {
+                    if (matrix[i][j] !== 0) {
+                        return false;
+                    }
                 }
             }
         }
+
         return true;
     }
 
     /**
      * Ελέγχει αν ένας πίνακας είναι κάτω τριγωνικός.
-     * @param {number[][]} matrix Ο πίνακας προς έλεγχο.
+     *
+     * @param {Array} matrix Ο πίνακας. Μπορεί να είναι μονοδιάστατος ή πολυδιάστατος.
      * @returns {boolean} True αν είναι κάτω τριγωνικός, false αλλιώς.
      * @static
      */
     static isLowerTriangular(matrix) {
-        if (!Matrix2d.isTwoDimensional(matrix) || matrix.length !== matrix[0].length) return false;
+        if (!Array.isArray(matrix)) {
+            throw new Error("Η είσοδος δεν είναι έγκυρος πίνακας.");
+        }
+
+        if (matrix.length === 0) {
+            return true; // Κενός πίνακας θεωρείται κάτω τριγωνικός
+        }
+
+        if (!Array.isArray(matrix[0])) {
+            // Μονοδιάστατος πίνακας
+            return true; // Κάθε μονοδιάστατος πίνακας θεωρείται κάτω τριγωνικός
+        }
+
         const n = matrix.length;
         for (let i = 0; i < n; i++) {
-            for (let j = i + 1; j < n; j++) {
-                if (matrix[i][j] !== 0) {
+            if (Array.isArray(matrix[i][0])) {
+                if (!this.isLowerTriangular(matrix[i])) {
                     return false;
+                }
+            } else {
+                for (let j = i + 1; j < n; j++) {
+                    if (matrix[i][j] !== 0) {
+                        return false;
+                    }
                 }
             }
         }
+
         return true;
     }
 
     /**
      * Ελέγχει αν ένας πίνακας είναι αυστηρά κάτω τριγωνικός.
-     * @param {number[][]} matrix Ο πίνακας προς έλεγχο.
+     *
+     * @param {Array} matrix Ο πίνακας. Μπορεί να είναι μονοδιάστατος ή πολυδιάστατος.
      * @returns {boolean} True αν είναι αυστηρά κάτω τριγωνικός, false αλλιώς.
      * @static
      */
     static isStrictlyLowerTriangular(matrix) {
-        if (!Matrix2d.isTwoDimensional(matrix) || matrix.length !== matrix[0].length) return false;
+        if (!Array.isArray(matrix)) {
+            throw new Error("Η είσοδος δεν είναι έγκυρος πίνακας.");
+        }
+
+        if (matrix.length === 0) {
+            return true; // Κενός πίνακας θεωρείται άνω τριγωνικός
+        }
+
+        if (!Array.isArray(matrix[0])) {
+            // Μονοδιάστατος πίνακας
+            return true; // Κάθε μονοδιάστατος πίνακας θεωρείται άνω τριγωνικός
+        }
+
         const n = matrix.length;
         for (let i = 0; i < n; i++) {
-            for (let j = i; j < n; j++) { //>=
-                if (matrix[i][j] !== 0) {
+            if (Array.isArray(matrix[i][0])) {
+                if (!this.isStrictlyLowerTriangular(matrix[i])) {
                     return false;
+                }
+            } else {
+                for (let j = i + 1; j < n; j++) { // Σημείωση: j > i για αυστηρά κάτω τριγωνικό
+                    if (matrix[i][j] !== 0) {
+                        return false;
+                    }
                 }
             }
         }
+
         return true;
     }
 
@@ -1105,5 +1502,129 @@ class Matrix2d {
         return x;
     }
 
+    /**
+     * Ελέγχει αν ένας πίνακας είναι ορθογώνιος.
+     * @param {Array} matrix Ο πίνακας προς έλεγχο.
+     * @returns {boolean} True αν ο πίνακας είναι ορθογώνιος, false αλλιώς.
+     * @static
+     */
+    static isOrthogonal(matrix) {
+        if (!Array.isArray(matrix)) {
+            throw new Error("Η είσοδος δεν είναι έγκυρος πίνακας.");
+        }
 
+        if (matrix.length === 0) {
+            return true; // Κενός πίνακας θεωρείται ορθογώνιος
+        }
+
+        // Ελέγχουμε αν όλες οι γραμμές έχουν το ίδιο μήκος
+        const cols = matrix[0].length;
+        for (let i = 1; i < matrix.length; i++) {
+            if (matrix[i].length !== cols) {
+                return false;
+            }
+        }
+
+        // Αν ο πίνακας είναι μονοδιάστατος, ελέγχουμε αν το μήκος του είναι 1
+        if (!Array.isArray(matrix[0])) {
+            return matrix.length === 1;
+        }
+
+        // Υπολογίζουμε το γινόμενο του πίνακα με τον μεταθεμένο του
+        const transposed = this.transpose(matrix);
+        const product = this.mult(matrix, transposed);
+
+        // Ελέγχουμε αν το γινόμενο είναι η μονάδα
+        const n = matrix.length;
+        for (let i = 0; i < n; i++) {
+            for (let j = 0; j < n; j++) {
+                if (i === j && product[i][j] !== 1) {
+                    return false;
+                } else if (i !== j && product[i][j] !== 0) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Ελέγχει αν ένας δεδομένος δισδιάστατος πίνακας είναι τετραγωνικός.
+     * Ένας πίνακας είναι τετραγωνικός όταν έχει τον ίδιο αριθμό γραμμών και στηλών.
+     *
+     * @param {Array<Array<number>>} matrix Ο πίνακας που θα ελεγχθεί.
+     * @returns {boolean} True αν ο πίνακας είναι τετραγωνικός, false διαφορετικά.
+     */
+    static isSquareMatrix(matrix) {
+        // Έλεγχος αν ο πίνακας είναι null ή undefined
+        if (!matrix) {
+        return false;
+        }
+    
+        // Έλεγχος αν ο πίνακας είναι κενός
+        if (matrix.length === 0) {
+        return false;
+        }
+    
+        // Αποθήκευση του μήκους της πρώτης γραμμής
+        const rows = matrix.length;
+        const cols = matrix[0].length;
+    
+        // Έλεγχος αν όλες οι γραμμές έχουν το ίδιο μήκος
+        for (let i = 1; i < rows; i++) {
+        if (matrix[i].length !== cols) {
+            return false;
+        }
+        }
+    
+        return true;
+    }
+
+    /**
+     * Διαχωρίζει έναν επαυξημένο πίνακα σε πίνακα συντελεστών και πίνακα σταθερών όρων.
+     * @param {number[][]} augmentedMatrix Ο επαυξημένος πίνακας. Πρέπει να είναι ένας δισδιάστατος πίνακας αριθμών.
+     * @returns {{coefficients: number[][], constants: number[][]}} Ένα αντικείμενο που περιέχει τον πίνακα συντελεστών και τον πίνακα σταθερών όρων.
+     * @throws {Error} Εάν ο πίνακας εισόδου είναι κενός ή δεν είναι έγκυρος επαυξημένος πίνακας (λιγότερες από 2 στήλες).
+     * @example
+     * const augmentedMatrix = [
+     *   [2, 1, 5],
+     *   [1, -1, 1],
+     * ];
+     * const results = Matrix2d.separateAugmentedMatrix(augmentedMatrix);
+     * console.log(results.coefficients); // [[2, 1], [1, -1]]
+     * console.log(results.constants); // [[5], [1]]
+     */
+    static separateAugmentedMatrix(augmentedMatrix) {
+        const numRows = augmentedMatrix.length;
+      
+        if (numRows === 0) {
+            throw new Error("Ο πίνακας είναι κενός.");
+        }
+      
+        const numCols = augmentedMatrix[0].length;
+      
+        if (numCols < 2) {
+            throw new Error("Η είσοδος δεν είναι έγκυρος πίνακας.");
+        }
+      
+        const coefficientMatrix = [];
+        const constantsMatrix = [];
+      
+        for (let row = 0; row < numRows; row++) {
+          coefficientMatrix[row] = [];
+          constantsMatrix[row] = [];
+      
+          for (let col = 0; col < numCols - 1; col++) {
+            coefficientMatrix[row][col] = augmentedMatrix[row][col];
+          }
+          constantsMatrix[row][0] = augmentedMatrix[row][numCols - 1];
+        }
+      
+        return {
+          coefficients: coefficientMatrix,
+          constants: constantsMatrix,
+        };
+      }
 }
+export {Matrix2d};
